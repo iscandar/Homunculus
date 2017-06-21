@@ -2,17 +2,20 @@
 #define HOMUNCULUS_H
 
 #include <stdio.h>
+#include<stdlib.h>
+#include<stdbool.h>
 
 #define _TYPE_PRECISION double
-#define epsilon 0.9 //capacita di apprendimento
-#define alfa 0.8 //considerazione dell'apprendimento passato
-#define error_accepted 0.0005
 
-typedef double (*trans_function)(_TYPE_PRECISION n);
+
+
 typedef struct brain homunculus_brain;
 typedef struct neuron neuron;
 typedef struct sinapsi sinapsi;
 typedef struct layer layer;
+typedef double (*trans_function)(_TYPE_PRECISION n);
+typedef double (*error_function)(neuron* n,_TYPE_PRECISION desidered);
+
 
 struct sinapsi
 {
@@ -22,7 +25,7 @@ struct sinapsi
 
 struct neuron
 {
-    _TYPE_PRECISION error;
+    _TYPE_PRECISION error;//some time its called delta
     _TYPE_PRECISION trans_value;//valore di trasferimento(valore che verra passato dopo l'applicazione della funzione di trasferimento)
     _TYPE_PRECISION prop_value;//valore di propagazione(valore di attivazione, somma di tutti gli input)
     int num_in_links, num_out_links;
@@ -38,24 +41,23 @@ struct layer
 };
 
  struct brain{
-    int num_inputs;
-    int num_hidden_layers, *num_neurons_hidden_layer, num_outputs;
+    int num_inputs, num_hidden_layers, *num_neurons_hidden_layer, num_outputs;
     double error;
+    double (*error_function)(neuron* n, _TYPE_PRECISION desidered);
     layer *layer_input;
-    layer *layer_output;
     layer *hidden_layer;
-
+    layer *layer_output;
 
 } ;
 
 double homunculus_random();
 void homunculus_brain_free(homunculus_brain *brain);
 _TYPE_PRECISION* take_output(homunculus_brain *brain);
-double test_brain (homunculus_brain* brain,int **input);
+double test_brain (homunculus_brain* brain,_TYPE_PRECISION**input);
 void see_brain (homunculus_brain* brain);
 homunculus_brain* brain_init(int inputs, int hidden_layers, int* hidden_neurons, int outputs);
-void run_train (homunculus_brain* brain, int** input, int epoche,_TYPE_PRECISION* desiderato);
-
+void run_train (homunculus_brain* brain, _TYPE_PRECISION** input, int epoche,_TYPE_PRECISION** desiderato);
+_TYPE_PRECISION** load_matrix(const char *file_name);
 
 
 #endif // HOMUNCULUS_H

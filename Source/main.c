@@ -1,30 +1,17 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "homunculus.h"
 
 int main()
 {
-
-    int hidden_neurons[2] ={2,2};
-   int** input;
-double desiderato[4]={1,1,0,1};
-
-input = (int**)malloc(sizeof(int*)*4);
-*input=(int*)malloc(sizeof(int)*2);
-input[0][0]=1 ;
-input[0][1]=0 ;
-*(input+1)=(int*)malloc(sizeof(int)*2);
-input[1][0]=0 ;
-input[1][1]=1 ;
-*(input+2)=(int*)malloc(sizeof(int)*2);
-input[2][0]=0 ;
-input[2][1]=0 ;
-*(input+3)=(int*)malloc(sizeof(int)*2);
-input[3][0]=1 ;
-input[3][1]=1 ;
-
-
-    homunculus_brain* brain= brain_init(2,2,hidden_neurons,1);
+    char file1[]="input.data";
+    char file2[]="desidered.data";
+    int hidden_neurons[1] ={45};//,36,45,81,9};
+    _TYPE_PRECISION** input=load_matrix(file1);
+    _TYPE_PRECISION** desiderato=load_matrix(file2);
+    //numero di input,numero di hiddenlayer,vettore nei neuroni per ogni layer, output
+    homunculus_brain* brain= brain_init(9,1,hidden_neurons,1);
 
 
     printf("Hello world! this is a program to create an atificial neural network\n");
@@ -33,6 +20,8 @@ input[3][1]=1 ;
     printf("layer nascosti: %d \n",brain ->num_hidden_layers);
     run_train(brain,input,100,desiderato);
     homunculus_brain_free(brain);
+    free(input);
+    free(desiderato);
     return 0;
 }
 

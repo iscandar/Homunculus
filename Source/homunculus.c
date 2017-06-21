@@ -5,6 +5,13 @@
 #include <string.h>
 #include <math.h>
 #include <assert.h>
+
+/***************************************************************************
+                            UNIVERSAL VARIBLES
+****************************************************************************/
+double epsilon = 0.8;//capacita di apprendimento
+double alfa = 0.4; //considerazione dell'apprendimento passato
+double error_accepted = 0.001;
 /***************************************************************************
                             PROTOTIPE FUCTION
 ****************************************************************************/
@@ -12,31 +19,31 @@ double homunculus_random();
 void homunculus_brain_free(homunculus_brain *brain);
 _TYPE_PRECISION calc_potential(neuron* n);
 _TYPE_PRECISION* take_output(homunculus_brain *brain);
-_TYPE_PRECISION transition_personal(_TYPE_PRECISION n);
+_TYPE_PRECISION transition_tan(_TYPE_PRECISION n);
 _TYPE_PRECISION transition_sigmoid(_TYPE_PRECISION n);
 int transition_linear(_TYPE_PRECISION n);
+double error_sse(neuron* n, _TYPE_PRECISION desidered);
+double error_cee(neuron* n, _TYPE_PRECISION desidered);
 neuron* init_neurons(int neurons);
 layer* init_layers(int n_layers, int* n_neurons);
 void layers_link(layer *l_1, layer *l_2);
 homunculus_brain* brain_init(int inputs, int hidden_layers, int* hidden_neurons, int outputs);
-void init_inputs(homunculus_brain *brain, int* inputs);
+void init_inputs(homunculus_brain *brain, _TYPE_PRECISION* inputs);
 void propagation_layers (homunculus_brain *brain);
 void calc_output_error(homunculus_brain* brain, _TYPE_PRECISION *desidered_outputs);
 void calc_back_propagation_error(homunculus_brain* brain);
 void see_brain (homunculus_brain* brain);
-double test_brain (homunculus_brain* brain,int **input);
-void run_train (homunculus_brain* brain, int** input, int epoche,_TYPE_PRECISION* desiderato);
+double test_brain (homunculus_brain* brain,_TYPE_PRECISION**input);
+void run_train (homunculus_brain* brain, _TYPE_PRECISION** input, int epoche,_TYPE_PRECISION** desiderato);
+_TYPE_PRECISION** load_matrix(const char *file_name);
 /***************************************************************************
                             UTILITY FUCTION
 ****************************************************************************/
 
+
 double homunculus_random()
 {
-    double max=2;
-    double min=-2;
-    time_t segs;
-    srand( ( unsigned int )(segs % 65536) );
-    return (((double)rand()/RAND_MAX) * (max - min) + min);
+    return -3+2*((float)rand()/((float)RAND_MAX/3));
 }
 void homunculus_brain_free(homunculus_brain *brain)
 {
@@ -86,22 +93,156 @@ _TYPE_PRECISION* take_output(homunculus_brain *brain)
     return val;
 }
 /***************************************************************************
+                            LOAD INPUT / SAVE DATA
+****************************************************************************/
+void load_setting()
+{
+    FILE* fd;
+
+}
+_TYPE_PRECISION** load_matrix(const char *file_name)
+{
+    FILE* file;
+    int file_found;
+    int r, c;
+    int a, b;
+    _TYPE_PRECISION **m;
+    do
+    {
+
+    file = fopen(file_name,"r");
+    if(!file)
+    {
+            printf("File %s Not Found!!\n",file_name);
+            file_found=1;
+    }
+    else
+        file_found=0;
+
+    }while(file_found);
+    fscanf(file,"%d",&r);
+    fscanf(file,"%d",&c);
+    m=(_TYPE_PRECISION**) malloc ( r * sizeof(_TYPE_PRECISION));
+    for(a = 0; a < r; a++ )
+    {
+        m[a]=(_TYPE_PRECISION*) malloc ( c * sizeof(_TYPE_PRECISION));
+    }
+    while(!feof(file))
+    {
+        for(a = 0; a < r; a++ )
+        {
+            for(b=0; b < c; b++ )
+            {
+                 fscanf(file,"%lf",&m[a][b]);
+               // printf("%lf ",m[a][b]);
+            }
+          //  printf("\n");
+
+        }
+    }
+    fclose(file);
+    return m;
+
+}
+//TODO da finire
+void save_homunculus(homunculus_brain * brain)
+{
+    char file_brain[] = "data_brain.data";
+    int a,b,c;
+    FILE* fp;
+    fp = fopen(file_brain,"w");
+    if (!fp)
+    {
+        printf("ERROR lettura del file data_brain.data non avvenuto");
+        exit(EXIT_FAILURE);
+    }
+    //write data brain
+    fprintf(fp,"[num_input] %d [num_hidden_layers] %d ",brain -> num_inputs,brain -> num_hidden_layers);
+    for( a=0; a < brain -> num_hidden_layers; a++)
+    {
+        fprintf(fp,"[num_neurons_hidden_layer %d] %d ",a,brain -> num_neurons_hidden_layer[a]);
+    }
+    fprintf(fp,"[num_outputs] %d\n",brain -> num_outputs);
+    fprintf(fp,"[num_neurons_input] %d\n",brain ->layer_input -> num_neurons);
+    for(a=0; a < brain ->layer_input -> num_neurons;a++)
+    {
+        neuron* n_temp = (brain ->layer_input -> neurons) + a;
+        fprintf(fp,"[num_in_links_neuron %d] %d\n",a,n_temp -> num_in_links);
+        for(b=0;b < n_temp -> num_in_links; b++)
+        {
+            sinapsi* s_temp =n_temp ->in_links + b;
+            fprintf(fp,"[in_links_weight %d] %lf ",b,s_temp -> weight);
+        }
+        fprintf(fp,"\n");
+    }
+    for(c=0;c < brain -> num_hidden_layers;c++)
+    {
+        layer* l_temp= brain -> hidden_layer + c;
+        fprintf(fp,"[num_neurons_hidden %d] %d\n",c,l_temp -> num_neurons);
+        for(a=0; a <l_temp -> num_neurons;a++)
+        {
+        neuron* n_temp = (l_temp -> neurons) + a;
+        fprintf(fp,"[num_in_links_neuron %d] %d\n",a,n_temp -> num_in_links);
+        for(b=0;b < n_temp -> num_in_links; b++)
+        {
+            sinapsi* s_temp =n_temp ->in_links + b;
+            fprintf(fp,"[in_links_weight %d] %lf ",b,s_temp->weight);
+        }
+        fprintf(fp,"\n");
+
+    }
+    }
+    fprintf(fp,"[num_neurons_output] %d\n",brain ->layer_output -> num_neurons);
+    for(a=0; a < brain ->layer_output -> num_neurons;a++)
+    {
+        neuron* n_temp = (brain ->layer_output -> neurons) + a;
+        fprintf(fp,"[num_in_links_neuron %d] %d\n",a,n_temp -> num_in_links);
+        for(b=0;b < n_temp -> num_in_links; b++)
+        {
+            sinapsi* s_temp =n_temp ->in_links + b;
+            fprintf(fp,"[in_links_weight %d] %lf ",b,s_temp -> weight);
+        }
+        fprintf(fp,"\n");
+    }
+
+}
+
+
+
+/***************************************************************************
                             TRANSFER FUCTIONS
 ****************************************************************************/
 
-_TYPE_PRECISION transition_personal(_TYPE_PRECISION n)
+_TYPE_PRECISION transition_tan(_TYPE_PRECISION n)
 {
-    return (_TYPE_PRECISION) n;
+    return (_TYPE_PRECISION) ((1 - exp(-n))/(1 + exp(-n)));
 }
 
 _TYPE_PRECISION transition_sigmoid(_TYPE_PRECISION n)
 {
-    return (_TYPE_PRECISION )(1/(1 + exp(-n)));
+    return (_TYPE_PRECISION )(1.0/(1.0 + exp(-n)));
 }
 
 int transition_linear(_TYPE_PRECISION n)
 {
     return (int) n;
+}
+/***************************************************************************
+                            ERROR FUCTIONS
+****************************************************************************/
+double error_sse(neuron* n, _TYPE_PRECISION desidered)//sigmoid square error
+{
+
+    double temp = (0.5 *(desidered - n->trans_value)*(desidered - n -> trans_value));
+     n -> error = (desidered - n -> trans_value) *  n -> trans_value * (1 - n -> trans_value) ;
+    //printf("ERROR SEE %lf -------------- %lf\n", (float)temp,(float) n-> error);
+    return   temp;
+
+}
+double error_cee(neuron* n, _TYPE_PRECISION desidered)//cross entropi error
+{
+    n -> error = (desidered - n -> trans_value);
+    return -(desidered * log(n -> trans_value)+(1.0 - desidered) * log ( 1.0 - n -> trans_value));
 }
 
 /***************************************************************************
@@ -193,8 +334,9 @@ homunculus_brain* brain_init(int inputs, int hidden_layers, int* hidden_neurons,
     brain -> num_outputs = outputs;
     brain -> layer_output = init_layers( 1, &outputs);
     brain -> error = 0;
+    brain -> error_function = error_sse;
     layers_link(brain -> layer_input,brain -> hidden_layer);
-       for( a = 1; a < (hidden_layers); a++)
+    for( a = 1; a < (hidden_layers); a++)
         {
 
             layers_link(brain -> hidden_layer+(a-1), brain -> hidden_layer+(a));
@@ -205,7 +347,7 @@ homunculus_brain* brain_init(int inputs, int hidden_layers, int* hidden_neurons,
 }
 
 //inserimento inputs
-void init_inputs(homunculus_brain *brain, int* inputs)
+void init_inputs(homunculus_brain *brain, _TYPE_PRECISION* inputs)
 {
     int a;
     //printf("inizio input\n");
@@ -217,6 +359,7 @@ void init_inputs(homunculus_brain *brain, int* inputs)
     }
 
 }
+
 /***************************************************************************
                             PROPAGATION FUCTION
 ****************************************************************************/
@@ -250,10 +393,9 @@ void calc_output_error(homunculus_brain* brain, _TYPE_PRECISION *desidered_outpu
     _TYPE_PRECISION error = 0;
     for(a = 0; a < brain -> layer_output -> num_neurons; a++)
     {
-        error+=0.5 *(desidered_outputs[a] - brain -> layer_output -> neurons[a].trans_value)*(desidered_outputs[a] - brain -> layer_output -> neurons[a].trans_value);//calcolo errore di uscita
-        //printf("valore di output : %f valore atteso : %f",(float) n_temp -> trans_value,(float) desidered_outputs[a]);
-        brain -> layer_output -> neurons[a].error= (desidered_outputs[a] - brain -> layer_output -> neurons[a].trans_value) * brain -> layer_output -> neurons[a].trans_value * (1 -brain -> layer_output -> neurons[a].trans_value) ;
-    }
+        error+= brain -> error_function(brain -> layer_output -> neurons+a, desidered_outputs[a]);
+        // brain -> layer_output -> neurons[a].error= (desidered_outputs[a] - brain -> layer_output -> neurons[a].trans_value) * brain -> layer_output -> neurons[a].trans_value * (1 -brain -> layer_output -> neurons[a].trans_value) ;//spostato in error_sse
+      }
      brain -> error+=error;
 }
 /***************************************************************************
@@ -381,10 +523,10 @@ void see_brain (homunculus_brain* brain)
     }
 }
 
-double test_brain (homunculus_brain* brain,int **input)
+double test_brain (homunculus_brain* brain,_TYPE_PRECISION**input)
 {
     double error_brain =0;
-        for(int i =0; i<4;i++){
+        for(int i =0; i<4;i++){//TODO  il 4 va sostituito con la quantita di prove
             init_inputs(brain,*(input+i));
             propagation_layers(brain);
             error_brain += brain -> error;
@@ -395,39 +537,63 @@ double test_brain (homunculus_brain* brain,int **input)
 /***************************************************************************
                             RUN FUCTIONS
 ****************************************************************************/
-void run_train (homunculus_brain* brain, int** input, int epoche,_TYPE_PRECISION* desiderato)
+void run_train (homunculus_brain* brain, _TYPE_PRECISION** input, int epoche,_TYPE_PRECISION** desiderato)
 {
+    FILE *f;
+    f = fopen("Training.log", "a+"); // a+ (create + append) option will allow appending which is useful in a log file
+    if (f == NULL) { /* Something is wrong   */}
     epoche = 0;
-
+    int num_input=958; //TODO VA SETTATO IN AUTOMATICO CON LA QUANTITA DI PROVE IN INPUT
+   // double temp_error = error_accepted;
     do{
-            printf("------------------ prova numero: %d -------------------\n",epoche);
-brain -> error =0;
-//printf("Errore inizio della prova = %f \n\n",(float) brain -> error);
-    for(int i =0; i<4;i++){
+        printf("------------------ prova numero: %d -------------------\n",epoche);
+        // fprintf(f,"------------------ prova numero: %d -------------------\n",epoche);
+        brain -> error =0;
+        //printf("Errore inizio della prova = %f \n\n",(float) brain -> error);
+        for(int i =0; i<num_input;i++){
             //see_brain(brain);
             //inserisco gli input
-        init_inputs(brain,*(input+i));
-        propagation_layers(brain);
-        calc_output_error(brain,desiderato+i);
-        calc_back_propagation_error(brain);
-        calc_weight_delta(brain);
-   // see_brain(brain);
-    }
-    epoche+=1;
-    printf("\n\n*****************Errore della prova = %f *********************\n\n",(float) brain -> error);
-    if(brain -> error < error_accepted)
-        break;
-    }while(1);
+            init_inputs(brain,*(input+i));
+            propagation_layers(brain);
+            calc_output_error(brain,*(desiderato+i));
+            calc_back_propagation_error(brain);
+            calc_weight_delta(brain);
+            // see_brain(brain);
+        }
 
-printf("-------------------inizio prova finale-----------------------\n");
-_TYPE_PRECISION* risposta;
-     for(int i =0; i<4;i++){
-           // printf("\ntest per valore %d %d il risultato è ",*(input+i)[0],*(input+i)[1]);
+        printf("\n\n*****************Errore della prova = %f *********************\n\n",(float) brain -> error);
+        fprintf(f,"Errore della prova %d = %f \n",epoche,(float) brain -> error);
+        if(brain -> error < error_accepted)
+            break;
+    //epsilon dinamico con il tempo
+  /* if(temp_error < brain -> error || brain -> error > error_accepted)
+    {
+        printf("[Epsilon] %lf\n",epsilon);
+        epsilon=epsilon - 0.00125;
+        if(epsilon<0)epsilon=0.9;
+
+        temp_error = brain -> error;
+    }*/
+        epoche+=1;
+    }while(1);
+    close(f);
+
+    printf("-------------------inizio prova finale-----------------------\n");
+    _TYPE_PRECISION* risposta;
+     for(int i =0; i<num_input;i++){
+
             init_inputs(brain,*(input+i));
             propagation_layers(brain);
             risposta = take_output(brain);
-     printf("risultato : %f\n",(float) risposta[0]);
+            printf("risultato : \n");
+            for(int a = 0; a < 1; a++)
+            {
+                 printf("%f ",(float) risposta[a]);
+            }
+            printf("\n");
+
         }
+    save_homunculus(brain);
 }
 
 
