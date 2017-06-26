@@ -15,13 +15,13 @@ double error_accepted = 0.001;
 /***************************************************************************
                             PROTOTIPE FUCTION
 ****************************************************************************/
-double homunculus_random();
-void homunculus_brain_free(homunculus_brain *brain);
-_TYPE_PRECISION calc_potential(neuron* n);
-_TYPE_PRECISION* take_output(homunculus_brain *brain);
-_TYPE_PRECISION transition_tan(_TYPE_PRECISION n);
-_TYPE_PRECISION transition_sigmoid(_TYPE_PRECISION n);
-int transition_linear(_TYPE_PRECISION n);
+double homunculus_random();//generate a random number between [-3,3]
+void homunculus_brain_free(homunculus_brain *brain);//free the memori used by the brain
+_TYPE_PRECISION calc_potential(neuron* n);//computes the potencial activation of neuron
+_TYPE_PRECISION* take_output(homunculus_brain *brain);//return a vector of output
+_TYPE_PRECISION transition_tan(_TYPE_PRECISION n);//this function use the tangent to computes the neuron output
+_TYPE_PRECISION transition_sigmoid(_TYPE_PRECISION n);//this function use the sigmoide to computes the neuron output
+int transition_linear(_TYPE_PRECISION n);//this function return the activation value without previus computes
 double error_sse(neuron* n, _TYPE_PRECISION desidered);
 double error_cee(neuron* n, _TYPE_PRECISION desidered);
 neuron* init_neurons(int neurons);
@@ -34,7 +34,7 @@ void calc_output_error(homunculus_brain* brain, _TYPE_PRECISION *desidered_outpu
 void calc_back_propagation_error(homunculus_brain* brain);
 void see_brain (homunculus_brain* brain);
 double test_brain (homunculus_brain* brain,_TYPE_PRECISION**input);
-void run_train (homunculus_brain* brain, _TYPE_PRECISION** input, int epoche,_TYPE_PRECISION** desiderato);
+void run_train (homunculus_brain* brain, _TYPE_PRECISION** input, int epoche,_TYPE_PRECISION** desiderato,const char* file_save);
 _TYPE_PRECISION** load_matrix(const char *file_name);
 /***************************************************************************
                             UTILITY FUCTION
@@ -43,7 +43,7 @@ _TYPE_PRECISION** load_matrix(const char *file_name);
 
 double homunculus_random()
 {
-    return -3+2*((float)rand()/((float)RAND_MAX/3));
+    return -3+2*((float)rand()/((float)RAND_MAX/3));//mod. [-3 and 3] to extend the range of random numbers
 }
 void homunculus_brain_free(homunculus_brain *brain)
 {
@@ -93,25 +93,27 @@ _TYPE_PRECISION* take_output(homunculus_brain *brain)
     return val;
 }
 /***************************************************************************
-                            LOAD INPUT / SAVE DATA
+                            LOAD INPUT / SAVE DATA /LOAD DATA
 ****************************************************************************/
-void load_setting()
+homunculus_brain* load_setting(const char *file_name)
 {
     FILE* fd;
-
-}
-_TYPE_PRECISION** load_matrix(const char *file_name)
-{
-    FILE* file;
     int file_found;
-    int r, c;
-    int a, b;
-    _TYPE_PRECISION **m;
+    int a,b,c;
+    //data brain
+    int num_input;
+    int num_output;
+    int num_hidden_layers;
+    int* num_neurons_hidden_layers;
+    homunculus_brain* brain;
+    //data neuron
+    int num_links;
+    double weight;
     do
     {
 
-    file = fopen(file_name,"r");
-    if(!file)
+    fd = fopen(file_name,"r");
+    if(!fd)
     {
             printf("File %s Not Found!!\n",file_name);
             file_found=1;
@@ -120,89 +122,153 @@ _TYPE_PRECISION** load_matrix(const char *file_name)
         file_found=0;
 
     }while(file_found);
-    fscanf(file,"%d",&r);
-    fscanf(file,"%d",&c);
+    fscanf(fd,"%d %d",&num_input,&num_hidden_layers);
+    num_neurons_hidden_layers = (int*) malloc (num_hidden_layers * sizeof(int));
+    for( a=0; a < num_hidden_layers; a++)
+    {
+        fscanf(fd,"%d",&num_neurons_hidden_layers[a]);
+    }
+    fscanf(fd,"%d",&num_output);
+    //rigenerazione della rete
+    brain = brain_init(num_input, num_hidden_layers, num_neurons_hidden_layers,num_output);
+    //rimessa appunto dei pesi
+    for(a=0; a < num_input ;a++)
+    {
+        fscanf(fd,"%d",&num_links);
+        for(b=0;b < num_links; b++)
+        {
+            fscanf(fd,"%lf",&weight);
+            brain -> layer_input -> neurons[a].in_links[b].weight=weight;
+
+        }
+    }
+    for(c=0;c < num_hidden_layers;c++)
+    {
+       // fscanf(fd,"[num_neurons_hidden %d] %d\n",NULL,NULL);
+        for(a=0; a <num_neurons_hidden_layers[c];a++)
+        {
+            fscanf(fd,"%d",&num_links);
+            for(b=0;b <num_links; b++)
+            {
+                fscanf(fd,"%lf",&weight);
+                brain -> hidden_layer[c].neurons[a].in_links[b].weight=weight;
+
+            }
+        }
+    }
+   // fscanf(fd,"[num_neurons_output] %d\n",NULL);
+    for(a=0; a < num_output;a++)
+    {
+        fscanf(fd,"%d",&num_links);
+        for(b=0;b <num_links; b++)
+        {
+            fscanf(fd,"%lf",&weight);
+            printf("ultio trovato %lf\n",weight);
+            brain -> layer_output -> neurons[a].in_links[b].weight=weight;
+        }
+    }
+
+    return brain;
+}
+
+_TYPE_PRECISION** load_matrix(const char *file_name)
+{
+    FILE* fd;
+    int file_found;
+    int r, c;
+    int a, b;
+    _TYPE_PRECISION **m;
+    do
+    {
+
+    fd = fopen(file_name,"r");
+    if(!fd)
+    {
+            printf("File %s Not Found!!\n",file_name);
+            file_found=1;
+    }
+    else
+        file_found=0;
+
+    }while(file_found);
+    fscanf(fd,"%d",&r);
+    fscanf(fd,"%d",&c);
     m=(_TYPE_PRECISION**) malloc ( r * sizeof(_TYPE_PRECISION));
     for(a = 0; a < r; a++ )
     {
         m[a]=(_TYPE_PRECISION*) malloc ( c * sizeof(_TYPE_PRECISION));
     }
-    while(!feof(file))
+    while(!feof(fd))
     {
         for(a = 0; a < r; a++ )
         {
             for(b=0; b < c; b++ )
             {
-                 fscanf(file,"%lf",&m[a][b]);
+                 fscanf(fd,"%lf",&m[a][b]);
                // printf("%lf ",m[a][b]);
             }
           //  printf("\n");
 
         }
     }
-    fclose(file);
+    fclose(fd);
     return m;
 
 }
 //TODO da finire
-void save_homunculus(homunculus_brain * brain)
+void save_homunculus(homunculus_brain * brain,const char* file_save)
 {
-    char file_brain[] = "data_brain.data";
     int a,b,c;
     FILE* fp;
-    fp = fopen(file_brain,"w");
+    fp = fopen(file_save,"w");
     if (!fp)
     {
         printf("ERROR lettura del file data_brain.data non avvenuto");
         exit(EXIT_FAILURE);
     }
     //write data brain
-    fprintf(fp,"[num_input] %d [num_hidden_layers] %d ",brain -> num_inputs,brain -> num_hidden_layers);
+    fprintf(fp,"%d %d\n",brain -> num_inputs,brain -> num_hidden_layers);
     for( a=0; a < brain -> num_hidden_layers; a++)
     {
-        fprintf(fp,"[num_neurons_hidden_layer %d] %d ",a,brain -> num_neurons_hidden_layer[a]);
+        fprintf(fp,"%d\n",brain -> num_neurons_hidden_layer[a]);
     }
-    fprintf(fp,"[num_outputs] %d\n",brain -> num_outputs);
-    fprintf(fp,"[num_neurons_input] %d\n",brain ->layer_input -> num_neurons);
+    fprintf(fp,"%d\n",brain -> num_outputs);
+   // fprintf(fp,"[num_neurons_input] %d\n",brain ->layer_input -> num_neurons);
     for(a=0; a < brain ->layer_input -> num_neurons;a++)
     {
         neuron* n_temp = (brain ->layer_input -> neurons) + a;
-        fprintf(fp,"[num_in_links_neuron %d] %d\n",a,n_temp -> num_in_links);
+        fprintf(fp,"%d\n",n_temp -> num_in_links);
         for(b=0;b < n_temp -> num_in_links; b++)
         {
             sinapsi* s_temp =n_temp ->in_links + b;
-            fprintf(fp,"[in_links_weight %d] %lf ",b,s_temp -> weight);
+            fprintf(fp,"%lf\n",s_temp -> weight);
         }
-        fprintf(fp,"\n");
     }
     for(c=0;c < brain -> num_hidden_layers;c++)
     {
         layer* l_temp= brain -> hidden_layer + c;
-        fprintf(fp,"[num_neurons_hidden %d] %d\n",c,l_temp -> num_neurons);
+        //fprintf(fp,"%d\n",l_temp -> num_neurons);
         for(a=0; a <l_temp -> num_neurons;a++)
         {
         neuron* n_temp = (l_temp -> neurons) + a;
-        fprintf(fp,"[num_in_links_neuron %d] %d\n",a,n_temp -> num_in_links);
+        fprintf(fp,"%d\n",n_temp -> num_in_links);
         for(b=0;b < n_temp -> num_in_links; b++)
         {
             sinapsi* s_temp =n_temp ->in_links + b;
-            fprintf(fp,"[in_links_weight %d] %lf ",b,s_temp->weight);
+            fprintf(fp,"%lf\n",s_temp->weight);
         }
-        fprintf(fp,"\n");
-
     }
     }
-    fprintf(fp,"[num_neurons_output] %d\n",brain ->layer_output -> num_neurons);
+   // fprintf(fp,"%d\n",brain ->layer_output -> num_neurons);
     for(a=0; a < brain ->layer_output -> num_neurons;a++)
     {
         neuron* n_temp = (brain ->layer_output -> neurons) + a;
-        fprintf(fp,"[num_in_links_neuron %d] %d\n",a,n_temp -> num_in_links);
+        fprintf(fp,"%d\n",n_temp -> num_in_links);
         for(b=0;b < n_temp -> num_in_links; b++)
         {
             sinapsi* s_temp =n_temp ->in_links + b;
-            fprintf(fp,"[in_links_weight %d] %lf ",b,s_temp -> weight);
+            fprintf(fp,"%lf\n",s_temp -> weight);
         }
-        fprintf(fp,"\n");
     }
 
 }
@@ -215,7 +281,7 @@ void save_homunculus(homunculus_brain * brain)
 
 _TYPE_PRECISION transition_tan(_TYPE_PRECISION n)
 {
-    return (_TYPE_PRECISION) ((1 - exp(-n))/(1 + exp(-n)));
+    return (_TYPE_PRECISION) ((1 - exp(-n/2))/(1 + exp(-n/2)));
 }
 
 _TYPE_PRECISION transition_sigmoid(_TYPE_PRECISION n)
@@ -324,7 +390,8 @@ void layers_link(layer *l_1, layer *l_2)
 
 }
 homunculus_brain* brain_init(int inputs, int hidden_layers, int* hidden_neurons, int outputs)
-{   int a=0;
+{
+    int a=0;
     homunculus_brain* brain =  malloc (sizeof(homunculus_brain));
     brain -> num_inputs = inputs;
     brain -> layer_input = init_layers( 1 , &inputs);
@@ -471,7 +538,7 @@ void see_brain (homunculus_brain* brain)
         for(int b=0; b < brain -> layer_input -> neurons[a].num_in_links; b++)
         {
 
-            printf("[ Neurone %d ]              [Link IN %x] Indirizzo neurone in %x  Indirizzo neurone out %x\n",a,brain -> layer_input -> neurons[a].in_links+b,brain -> layer_input -> neurons[a].in_links[b].in ,brain -> layer_input -> neurons[a].in_links[b].out);
+            printf("[ Neurone %d ]              [Link IN %x] Indirizzo neurone in %x  Indirizzo neurone out %x [Peso] %lf\n",a,brain -> layer_input -> neurons[a].in_links+b,brain -> layer_input -> neurons[a].in_links[b].in ,brain -> layer_input -> neurons[a].in_links[b].out,brain -> layer_input -> neurons[a].in_links[b].weight);
         }
         printf("[ Neurone %d ]              Out_link\n",a);
         for(int b=0; b < brain -> layer_input -> neurons[a].num_out_links; b++)
@@ -492,7 +559,7 @@ void see_brain (homunculus_brain* brain)
 
             for(int b=0; b < brain -> hidden_layer[c].neurons[a].num_in_links; b++)
             {
-                printf("[ Neurone %d ]              [Link IN %x] Indirizzo neurone in %x  Indirizzo neurone out %x\n",a,brain -> hidden_layer[c].neurons[a].in_links+b,brain -> hidden_layer[c].neurons[a].in_links[b].in ,brain -> hidden_layer[c].neurons[a].in_links[b].out);
+                printf("[ Neurone %d ]              [Link IN %x] Indirizzo neurone in %x  Indirizzo neurone out %x [Peso] %lf\n",a,brain -> hidden_layer[c].neurons[a].in_links+b,brain -> hidden_layer[c].neurons[a].in_links[b].in ,brain -> hidden_layer[c].neurons[a].in_links[b].out,brain -> hidden_layer[c].neurons[a].in_links[b].weight);
             }
             printf("[ Neurone %d ]              Out_link\n",a);
             for(int b=0; b <  brain -> hidden_layer[c].neurons[a].num_out_links; b++)
@@ -506,13 +573,13 @@ void see_brain (homunculus_brain* brain)
     for(int a = 0; a < brain -> num_outputs; a++)
     {
 
-        printf("[ Neurone %d ] Indirizzo %x ; Val_trasferimento %f \n",a,brain -> layer_output -> neurons+a,brain -> layer_output -> neurons[a].trans_value);
+        printf("[ Neurone %d ] Indirizzo %x ; Val_trasferimento %f  num in link %d\n",a,brain -> layer_output -> neurons+a,brain -> layer_output -> neurons[a].trans_value,brain -> layer_output -> neurons[a].num_in_links);
         printf("[ Neurone %d ]              In_link\n",a);
 
         for(int b=0; b < brain -> layer_output -> neurons[a].num_in_links; b++)
         {
 
-            printf("[ Neurone %d ]              [Link IN %x] Indirizzo neurone in %x  Indirizzo neurone out %x\n",a,brain -> layer_output -> neurons[a].in_links+b,brain -> layer_output -> neurons[a].in_links[b].in ,brain -> layer_output -> neurons[a].in_links[b].out);
+            printf("[ Neurone %d ]              [Link IN %x] Indirizzo neurone in %x  Indirizzo neurone out %x [Peso] %lf\n",a,brain -> layer_output -> neurons[a].in_links+b,brain -> layer_output -> neurons[a].in_links[b].in ,brain -> layer_output -> neurons[a].in_links[b].out,brain -> layer_output -> neurons[a].in_links[b].weight);
         }
         printf("[ Neurone %d ]              Out_link\n",a);
         for(int b=0; b < brain -> layer_output -> neurons[a].num_out_links; b++)
@@ -537,13 +604,34 @@ double test_brain (homunculus_brain* brain,_TYPE_PRECISION**input)
 /***************************************************************************
                             RUN FUCTIONS
 ****************************************************************************/
-void run_train (homunculus_brain* brain, _TYPE_PRECISION** input, int epoche,_TYPE_PRECISION** desiderato)
+//TODO RUN_BRAIN
+_TYPE_PRECISION run_brain (homunculus_brain* brain,_TYPE_PRECISION**input)
+{
+    int num_input=4;
+    int i,a;
+    printf("-------------------inizio prova finale-----------------------\n");
+    _TYPE_PRECISION* risposta;
+     for(int i =0; i<num_input;i++){
+
+            init_inputs(brain,*(input+i));
+            propagation_layers(brain);
+            risposta = take_output(brain);
+            printf("risultato : \n");
+            for( a = 0; a < 1; a++)
+            {
+                 printf("%f ",(float) risposta[a]);
+            }
+            printf("\n");
+
+        }
+}
+void run_train (homunculus_brain* brain, _TYPE_PRECISION** input, int epoche,_TYPE_PRECISION** desiderato,const char* file_save)
 {
     FILE *f;
-    f = fopen("Training.log", "a+"); // a+ (create + append) option will allow appending which is useful in a log file
+    f = fopen("training.log", "w+"); // a+ (create + append) option will allow appending which is useful in a log file
     if (f == NULL) { /* Something is wrong   */}
     epoche = 0;
-    int num_input=958; //TODO VA SETTATO IN AUTOMATICO CON LA QUANTITA DI PROVE IN INPUT
+    int num_input=4;//958; //TODO VA SETTATO IN AUTOMATICO CON LA QUANTITA DI PROVE IN INPUT
    // double temp_error = error_accepted;
     do{
         printf("------------------ prova numero: %d -------------------\n",epoche);
@@ -593,7 +681,7 @@ void run_train (homunculus_brain* brain, _TYPE_PRECISION** input, int epoche,_TY
             printf("\n");
 
         }
-    save_homunculus(brain);
+    save_homunculus(brain,file_save);
 }
 
 

@@ -56,7 +56,7 @@ _TYPE_PRECISION* take_output(homunculus_brain *brain);
 double test_brain (homunculus_brain* brain,_TYPE_PRECISION**input);
 void see_brain (homunculus_brain* brain);
 homunculus_brain* brain_init(int inputs, int hidden_layers, int* hidden_neurons, int outputs);
-void run_train (homunculus_brain* brain, _TYPE_PRECISION** input, int epoche,_TYPE_PRECISION** desiderato);
+void run_train (homunculus_brain* brain, _TYPE_PRECISION** input, int epoche,_TYPE_PRECISION** desiderato,const char* file_save);
 _TYPE_PRECISION** load_matrix(const char *file_name);
 
 
