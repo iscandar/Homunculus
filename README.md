@@ -1,4 +1,5 @@
-# Homunculus (Status in progress)
+# Homunculus (Status in progress)  
+                
 
 A library for training and using feedforward artificial neural networks, written entirely in C Ansi. This library is intended to be simple to use, reliable, hackable and usefull to understand artificial neural networks, thanks to the structure more similar to a biological neural network than to a mathematical representation.
 
