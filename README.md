@@ -18,9 +18,10 @@ Implements different tipes of error calc : SSE and CEE.
 Implements "Momentum updating rule".
 Includes some examples.
 
-# Status and notes
+# Status, notes, future implementation:
+Further simplification of the code.
+Complete translation of comments and notes in italian to english.
+Implementation of a better function for dynamic updating of momentum and learning rate
 
-Currently in its primordial state, it only features a small feedforward - back propagation structure. With the use of sigmoid as a transfer function.
-
-# For anyone interested in participating or contributing, contact me privately
-# aeontivero@gmail.com
+ For anyone interested in participating or contributing, contact me privately
+ aeontivero@gmail.com
